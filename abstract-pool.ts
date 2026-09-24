@@ -190,9 +190,13 @@ export class AbstractSimplePool {
       if (params.alreadyHaveEvent?.(id)) {
         return true
       }
-      const have = _knownIds.has(id)
-      _knownIds.add(id)
-      return have
+      return _knownIds.has(id)
+    }
+    // the id is only remembered once the event has been verified (this runs after matchFilters() and
+    // verifyEvent()), otherwise a relay could make us drop a real event just by sending its id first
+    const localOnEvent = (event: Event) => {
+      _knownIds.add(event.id)
+      params.onevent?.(event)
     }
 
     // open a subscription in all given relays
@@ -234,6 +238,7 @@ export class AbstractSimplePool {
                     onclose: reason => {
                       handleClose(i, url, reason) // the second time we won't try to auth anymore
                     },
+                    onevent: localOnEvent,
                     alreadyHaveEvent: localAlreadyHaveEventHandler,
                     eoseTimeout: params.maxWait,
                     abort: params.abort,
@@ -246,6 +251,7 @@ export class AbstractSimplePool {
               handleClose(i, url, reason)
             }
           },
+          onevent: localOnEvent,
           alreadyHaveEvent: localAlreadyHaveEventHandler,
           eoseTimeout: params.maxWait,
           abort: params.abort,
